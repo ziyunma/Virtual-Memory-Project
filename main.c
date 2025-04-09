@@ -30,17 +30,23 @@ int nframes = 0;
 int npages = 0;
 const char *algorithm = NULL;
 int page_faults = 0;
+int disk_reads = 0;
+int disk_writes = 0;
+
+//for clock algo:
+int *ref_bits = 0;
+int clock_hand = 0;
 
 /* A dummy page fault handler to start.  This is where most of your work goes. */
 void page_fault_handler( struct page_table *pt, int page )
 {
-	page_faults++;
+	page_faults++; // incr counter
 	int frame;
 	int bits;
 
-	page_table_get_entry(pt, page, &frame, &bits);
+	page_table_get_entry(pt, page, &frame, &bits); // get curr mapping and flags for faulting page
 
-	// If the page is already present, page fault
+	// If the page is already present, page fault, something went wrong
 	if (bits & BIT_PRESENT) {
 		fprintf(stderr, "Page is already present on page %d\n", page);
 		exit(1);
@@ -50,18 +56,48 @@ void page_fault_handler( struct page_table *pt, int page )
 	for (int i = 0; i < nframes; i++) {
 		if (frame_table[i] == -1) {
 			// Empty frame found
-			disk_read(disk, page, &physmem[i * PAGE_SIZE]);
-			page_table_set_entry(pt, page, i, BIT_PRESENT | BIT_WRITE);
+			disk_read(disk, page, &physmem[i * PAGE_SIZE]); //load page from disk
+			disk_reads++;
+			page_table_set_entry(pt, page, i, BIT_PRESENT | BIT_WRITE); // update page table and frame
 			frame_table[i] = page;
 			page_table_rev[page] = i;
-			return;
+			if (!strcmp(algorithm, "clock")) { // if clock algo
+				if (!ref_bits) { // make sure ref_bits only allocated once
+					ref_bits = malloc(sizeof(int) * nframes); 
+					for (int j = 0; j < nframes; j++) ref_bits[j] = 0; // init all entries at beginning to 0
+				}
+				ref_bits[i] = 1; // set to 1 (recently used)
+			}
+			return; // exit bc we found a free frame
 		}
 	}
 
-	// No free frame: choose a random one to evict
-	// printf("%d\n", nframes);
-	int victim = rand() % nframes;
-	int evicted_page = frame_table[victim];
+	int victim; // didnt find free frame, evict someone
+
+	if (!strcmp(algorithm, "rand")) { victim = rand() % nframes; } // using rand evict random frame
+	else if (!strcmp(algorithm, "clock")) {
+		if (!ref_bits) { // using clock, make sure ref_bits is init, if not do it
+			ref_bits = malloc(sizeof(int) * nframes);
+			for (int j = 0; j < nframes; j++) ref_bits[j] = 0;
+		}
+		while (1) {
+			int candidate_page = frame_table[clock_hand]; // look at page curr at clock hanf pos and get PT info
+			int candidate_bits;
+			page_table_get_entry(pt, candidate_page, &frame, &candidate_bits);
+
+			if (ref_bits[clock_hand] == 0) { // PT hasnt referenced recently so choose as victim
+				victim = clock_hand;
+				clock_hand = (clock_hand + 1) % nframes; // move clock hand to next spot (circular)
+				break;
+			} else { // ref bit is set to 1 so move clock fwd
+				ref_bits[clock_hand] = 0;
+				clock_hand = (clock_hand + 1) % nframes;
+			}
+		}
+	}
+
+
+	int evicted_page = frame_table[victim]; // get virtual page stored in victim frame
 
 	// Get current bits of evicted page
 	int evicted_bits;
@@ -70,6 +106,7 @@ void page_fault_handler( struct page_table *pt, int page )
 	// If dirty, write back to disk
 	if (evicted_bits & BIT_DIRTY) {
 		disk_write(disk, evicted_page, &physmem[victim * PAGE_SIZE]);
+		disk_writes++;
 	}
 
 	// Invalidate old page
@@ -77,9 +114,15 @@ void page_fault_handler( struct page_table *pt, int page )
 
 	// Load new page into victim frame
 	disk_read(disk, page, &physmem[victim * PAGE_SIZE]);
+	disk_reads++;
 	page_table_set_entry(pt, page, victim, BIT_PRESENT | BIT_WRITE);
 	frame_table[victim] = page;
 	page_table_rev[page] = victim;
+
+	if (!strcmp(algorithm, "clock")) { // if clock set ref bits to newly loaded page
+		ref_bits[victim] = 1;
+	}
+
 }
 
 int main( int argc, char *argv[] )
@@ -91,8 +134,13 @@ int main( int argc, char *argv[] )
 
 	npages = atoi(argv[1]);
 	nframes = atoi(argv[2]);
-	const char *algoname = argv[3];
+	algorithm = argv[3];
 	const char *program = argv[4];
+
+	if (strcmp(algorithm, "rand") != 0 && strcmp(algorithm, "clock") != 0 && strcmp(algorithm, "custom") != 0) { 
+		fprintf(stderr, "unknown algorithm: %s\n", algorithm);
+		return 1;
+	}
 
 	disk = disk_open("myvirtualdisk",npages);
 	if(!disk) {
@@ -131,6 +179,10 @@ int main( int argc, char *argv[] )
 		fprintf(stderr,"unknown program: %s\n",argv[4]);
 		return 1;
 	}
+
+	printf("\nsummary:\n\tpage faults: %d\n", page_faults);
+	printf("\tdisk reads: %d\n", disk_reads);
+	printf("\tdisk writes: %d\n", disk_writes);
 
 	page_table_delete(pt);
 	disk_close(disk);
