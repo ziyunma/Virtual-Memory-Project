@@ -1,0 +1,27 @@
+// Project 5
+// report.txt
+
+// Drew DiGuglielmo and Ziyun Ma
+
+1. Purpose of experiments and experimental setup.
+    
+    Using student machine__
+    Command line arguments & outputs:
+
+    explanation
+
+2. Describe the custom page replacement algorithm invented
+
+    also draw a diagram for this! show info stored and how it is accessed
+
+3. Measure & graph number of page faults, disk reads and disk writes for
+each program with a varying number of frames (3-100) and 100 pages.
+
+    nice labels, good layout, and easy to read...prob just use desmos
+
+4. Explain the nature of results. Is anything unexpected? If any algorithm
+performed better than another in certain conditions, point it out, explain
+the condition, and explain why it performed better. What general observations
+can be made about the page replacement algorithms?
+
+    
