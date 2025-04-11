@@ -37,6 +37,9 @@ int disk_writes = 0;
 int *ref_bits = 0;
 int clock_hand = 0;
 
+unsigned int *ages = 0; // Array of ages, one per frame
+unsigned int time_counter = 0;
+
 /* A dummy page fault handler to start.  This is where most of your work goes. */
 void page_fault_handler( struct page_table *pt, int page )
 {
@@ -61,6 +64,7 @@ void page_fault_handler( struct page_table *pt, int page )
 			page_table_set_entry(pt, page, i, BIT_PRESENT | BIT_WRITE); // update page table and frame
 			frame_table[i] = page;
 			page_table_rev[page] = i;
+
 			if (!strcmp(algorithm, "clock")) { // if clock algo
 				if (!ref_bits) { // make sure ref_bits only allocated once
 					ref_bits = malloc(sizeof(int) * nframes); 
@@ -68,13 +72,19 @@ void page_fault_handler( struct page_table *pt, int page )
 				}
 				ref_bits[i] = 1; // set to 1 (recently used)
 			}
+			if (!strcmp(algorithm, "custom")) {
+				time_counter++;
+				ages[i] = time_counter;
+			}
 			return; // exit bc we found a free frame
 		}
 	}
 
 	int victim; // didnt find free frame, evict someone
 
-	if (!strcmp(algorithm, "rand")) { victim = rand() % nframes; } // using rand evict random frame
+	if (!strcmp(algorithm, "rand")) { 
+		victim = rand() % nframes; // using rand evict random frame
+	} 
 	else if (!strcmp(algorithm, "clock")) {
 		if (!ref_bits) { // using clock, make sure ref_bits is init, if not do it
 			ref_bits = malloc(sizeof(int) * nframes);
@@ -95,8 +105,18 @@ void page_fault_handler( struct page_table *pt, int page )
 			}
 		}
 	}
-
-
+	else if (!strcmp(algorithm, "custom")) {
+		unsigned int oldest = ~0;
+		victim = -1;
+		for (int i = 0; i < nframes; i++) {
+			if (ages[i] < oldest) {
+				oldest = ages[i];
+				victim = i;
+			}
+		}
+	}
+	
+	
 	int evicted_page = frame_table[victim]; // get virtual page stored in victim frame
 
 	// Get current bits of evicted page
@@ -121,6 +141,10 @@ void page_fault_handler( struct page_table *pt, int page )
 
 	if (!strcmp(algorithm, "clock")) { // if clock set ref bits to newly loaded page
 		ref_bits[victim] = 1;
+	}
+	if (!strcmp(algorithm, "custom")) {
+		time_counter++;
+		ages[victim] = time_counter;
 	}
 
 }
@@ -159,9 +183,10 @@ int main( int argc, char *argv[] )
 
 	frame_table = malloc(sizeof(int) * nframes);
 	page_table_rev = malloc(sizeof(int) * npages);
+	ages = malloc(sizeof(unsigned int) * nframes);
 	for (int i = 0; i < nframes; i++) frame_table[i] = -1;
 	for (int i = 0; i < npages; i++) page_table_rev[i] = -1;
-
+	for (int i = 0; i < nframes; i++) ages[i] = 0;
 	
 	if(!strcmp(program,"alpha")) {
 		alpha_program(pt,virtmem,npages*PAGE_SIZE);
