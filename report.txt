@@ -3,16 +3,64 @@
 
 // Drew DiGuglielmo and Ziyun Ma
 
+<<<<<<< HEAD
 1. Purpose of experiments and experimental setup.     // ziyun
     
     Using student machine__
     Command line arguments & outputs:
+=======
+1. Purpose of experiments and experimental setup.
+    Using student machine 13
+    Command line arguments: ./virtmem 100 32 rand|clock|custom alpha|beta|gamma|delta
 
-    explanation
+    Purpose: 
+    The purpose of the experiment is to compaire differnet page replacement algorithms to 
+    see their efficiency in managing virtual memory. We measured the number of page faults, 
+    disk reads, and disk writes while running different types of memory access patterns 
+    (alpha, beta, gamma, delta programs), and compared the results to determine efficiency.
 
+    Experimental Setup:
+    A virtual memory simulation (virtmem) is run using one of three algorithms that loads and 
+    executes different memory access patterns.
+    The memory system has a number of virtual pages and physical frames (from input), a 
+    page table that maps virtual pages to physical frames, and a disk storage where pages are 
+    stored when not in memory. 
+    The experiment variables are number of pages and frames, page replacement algorithm 
+    (rand, clock, custom) and the input program (alpha, beta, gamma, delta) that generates 
+    memory access behavior. 
+    The results are the number of page faults, and the number of times that data is read from 
+    and written to disk. 
+>>>>>>> 1dd702d (finished report 1 and 2)
+
+
+<<<<<<< HEAD
 2. Describe the custom page replacement algorithm invented      // ziyun
 
     also draw a diagram for this! show info stored and how it is accessed
+=======
+2. Describe the custom page replacement algorithm invented
+    The goal of the custom algorithm is to reduce the number of disk reads and writes by tracking 
+    how "old" each page is in memory and evicting the oldest (least recently used) page when memory is full.
+
+    Data structures used to keep track:
+        ages[]: An array of size nframes, ages[i] records the last time frame i was accessed.
+        time_counter: A global counter incremented every time a page is loaded into memory.
+
+    Page fault handler steps:
+        1: Look for a free frame: 
+            If found, load the page from disk into that frame.
+            Update ages[frame] = time_counter++.
+        2: No free frame?
+            Find the frame with the smallest age — the one that was accessed longest ago.
+            Evict that page.
+            If the page is dirty, write it back to disk.
+            Load the new page and update ages[victim] = time_counter++.
+
+    Victim choice:
+        The least recently accessed page is evicted first.
+
+    diagram: please see diagram.png
+>>>>>>> 1dd702d (finished report 1 and 2)
 
 3. Measure & graph number of page faults, disk reads and disk writes for    // drew
 each program with a varying number of frames (3-100) and 100 pages.
