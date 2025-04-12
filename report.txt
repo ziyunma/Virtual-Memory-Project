@@ -47,7 +47,7 @@
     Victim choice:
         The least recently accessed page is evicted first.
 
-    diagram: please see diagram.png
+    diagram: please see diagram.jpg
 
 3. Measure & graph number of page faults, disk reads and disk writes for    // drew
 each program with a varying number of frames (3-100) and 100 pages.
